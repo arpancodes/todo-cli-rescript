@@ -7,7 +7,7 @@ https://gist.github.com/jasim/99c7b54431c64c0502cfe6f677512a87
 let getToday: unit => string = %raw(`
 function() {
   let date = new Date();
-  return new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
+  return date
     .toISOString()
     .split("T")[0];
 }

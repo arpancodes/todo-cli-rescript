@@ -9,7 +9,7 @@ var Belt_Option = require("bs-platform/lib/js/belt_Option.js");
 
 var getToday = (function() {
   let date = new Date();
-  return new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
+  return date
     .toISOString()
     .split("T")[0];
 });
