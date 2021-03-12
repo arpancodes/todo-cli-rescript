@@ -13,11 +13,7 @@ function() {
 }
   `)
 
-let isEmpty: 'a => bool = %raw(`
-function(x) {
-  return !Boolean(x)
-}
-`)
+
 
 let returnInt = (x: option<int>) =>
   switch x {
@@ -101,28 +97,31 @@ let cmdLs = () => {
   if (Js.Array.length(todos) == 0) {
     Js.log("There are no pending todos!")
   } else{
-    let length = Js.Array.length(todos)
-    let todos = Js.Array.mapi((todo, index) => `[${Belt.Int.toString(length - index)}] ${todo}`, Belt.Array.reverse(todos))
-    Js.log(Js.Array.joinWith("\n", todos))
+  let length = Js.Array.length(todos)
+   todos
+    ->Belt.Array.reverse
+    ->Belt.Array.reduceWithIndex("", (acc, x, i) => acc ++ `[${(length - i)->Belt.Int.toString}] ${x}\n`)
+    ->Js.log
   }
 }
 
 
-let cmdAddTodo = (text) => {
-  if (isEmpty(text)) {
+let cmdAddTodo = (arg: option<string>) => {
+  if (Belt.Option.isNone(arg)) {
     Js.log("Error: Missing todo string. Nothing added!")
   } else {
-    updateFile(pending_todos_file, todos => Belt.Array.concat(todos, [text]))
-    Js.log(`Added todo: "${text}"`)
+    updateFile(pending_todos_file, todos => Belt.Array.concat(todos, [Belt.Option.getExn(arg)]))
+    Js.log(`Added todo: "${Belt.Option.getExn(arg)}"`)
   }
 }
 
 
 
-let cmdDelTodo = (number: int) => {
-  if (number < 0) {
+let cmdDelTodo = (arg: option<int>) => {
+  if (Belt.Option.isNone(arg)) {
     Js.log(`Error: Missing NUMBER for deleting todo.`)
   } else {
+    let number = arg->Belt.Option.getExn
     updateFile(pending_todos_file, todos => {
       let todosUpdated = if (number < 1 || number > Js.Array.length(todos)) {
         Js.log(`Error: todo #${Belt.Int.toString(number)} does not exist. Nothing deleted.`)
@@ -138,12 +137,12 @@ let cmdDelTodo = (number: int) => {
 }
 
 
-let cmdMarkDone = (number: int) => {
-  if (number < 0) {
+let cmdMarkDone = (arg: option<int>) => {
+  if (arg->Belt.Option.isNone) {
     Js.log(`Error: Missing NUMBER for marking todo as done.`)
   } else {
     let todos = readFile(pending_todos_file)
-
+    let number = Belt.Option.getExn(arg)
     if (number < 1 || number > Js.Array.length(todos)) {
       Js.log(`Error: todo #${Belt.Int.toString(number)} does not exist.`)
     } else {
@@ -164,31 +163,30 @@ let cmdReport = () => {
 }
 
 
-type process = {
-  argv: array<string>
-}
-
-@bs.val external process: process = "process"
+@val @scope("process") external argv: array<string> = "argv"
 
 
+let command: option<string> = argv->Belt.Array.get(2)
+let arg: option<string> = argv->Belt.Array.get(3)
 
-let argv = process.argv
-let command = returnStr(Belt.Array.get(argv, 2));
-let arg = returnStr(Belt.Array.get(argv, 3));
-
-let start = () =>{
-  if(isEmpty(command)){
-    cmdHelp()
-  } else {
-    switch command {
+let fireCommand = (cmd) => {
+  switch cmd {
     | "ls" => cmdLs()
+    | "helo" => cmdHelp()
     | "add" => cmdAddTodo(arg)
-    | "del" => cmdDelTodo(returnInt(Belt.Int.fromString(arg)))
-    | "done" => cmdMarkDone(returnInt(Belt.Int.fromString(arg)))
-    | "help" => cmdHelp()
+    | "del" => arg->Belt.Option.flatMap(Belt.Int.fromString)->cmdDelTodo
+    | "done" => arg->Belt.Option.flatMap(Belt.Int.fromString)->cmdMarkDone
     | "report" => cmdReport()
     | _ => cmdHelp()
-    }
   }
 }
+
+let start = () =>{
+    switch command {
+    | Some(cmd) => fireCommand(cmd)
+    | None => cmdHelp()
+  }
+}
+
+
 start()

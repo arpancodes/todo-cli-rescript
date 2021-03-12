@@ -5,3 +5,4 @@ lib/bs
 .bsb.lock
 .idea
 .merlin
+.DS_Store
